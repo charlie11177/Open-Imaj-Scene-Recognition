@@ -21,8 +21,11 @@ import org.openimaj.image.typography.hershey.HersheyFont;
 import org.openimaj.knn.FloatNearestNeighboursExact;
 import org.openimaj.ml.annotation.basic.KNNAnnotator;
 import org.openimaj.util.comparator.DistanceComparator;
+import org.openrdf.query.algebra.Str;
 
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.HashMap;
 
 public class Run1 {
     public static void main( String[] args ) {
@@ -35,54 +38,69 @@ public class Run1 {
                     "zip:http://comp3204.ecs.soton.ac.uk/cw/testing.zip",
                     ImageUtilities.FIMAGE_READER);
 
-            for (FImage image : training)
+            HashMap<Integer, FImage> map = new HashMap<>();
+            HashMap<Integer, String> classifications = new HashMap<>();
+            int index = 0;
+            for (String group : training.getGroups())
             {
-                // cropping code
-                int size1 = image.pixels.length;
-                int size2 = image.pixels[0].length;
-                if (size1 > size2) {
-                    float[][] cropped = new float[size2][size2];
-                    for (int i = 0; i < size2; i++) {
-                        for (int j = 0; j < size2; j++) {
-                            cropped[i][j] = image.pixels[i][j];
+                for (FImage image2 : training.get(group)) {
+                    // cropping code
+                    FImage image = image2.clone();
+                    int size1 = image.pixels.length;
+                    int size2 = image.pixels[0].length;
+                    if (size1 > size2) {
+                        float[][] cropped = new float[size2][size2];
+                        for (int i = 0; i < size2; i++) {
+                            for (int j = 0; j < size2; j++) {
+                                cropped[i][j] = image.pixels[i][j];
+                            }
                         }
-                    }
-                    image.pixels = cropped;
-                    if (image.pixels.length != image.pixels[0].length)
-                        System.out.println("Bruh");
-                }
-                else {
-                    float[][] cropped2 = new float[size1][size1];
-                    for (int i = 0; i < size1; i++) {
-                        for (int j = 0; j < size1; j++) {
-                            cropped2[i][j] = image.pixels[i][j];
+                        image.pixels = cropped;
+                        if (image.pixels.length != image.pixels[0].length)
+                            System.out.println("Bruh");
+                    } else {
+                        float[][] cropped2 = new float[size1][size1];
+                        for (int i = 0; i < size1; i++) {
+                            for (int j = 0; j < size1; j++) {
+                                cropped2[i][j] = image.pixels[i][j];
+                            }
                         }
+                        image.pixels = cropped2;
+                        if (image.pixels.length != image.pixels[0].length)
+                            System.out.println("Bruh");
                     }
-                    image.pixels = cropped2;
-                    if (image.pixels.length != image.pixels[0].length)
-                        System.out.println("Bruh");
+
+//                    image = ResizeProcessor.zoomInplace(image, 16,16);
+                    map.put(index, image);
+                    classifications.put(index, group);
+                    index++;
                 }
-                // shrinking code
             }
-            for (FImage image : training) {
+            for (FImage image : map.values()) {
                 if (image.pixels.length != image.pixels[0].length)
                     System.out.println("DONT WORK");
             }
 
-            for (FImage image : training) {
-                ResizeProcessor.zoomInplace(image, 16,16);
+            ResizeProcessor.zoomInplace(map.get(1), 16,16);
+
+            System.out.println(map.size());
+
+            for (Integer num : map.keySet()) {
+                map.put(num, ResizeProcessor.resizeMax(map.get(num).clone(), 16));
+            }
+
+            for (FImage image : map.values()) {
+                System.out.println(image.pixels.length);
+                System.out.println(image.pixels[0].length);
             }
 
             // KNN stuff
 
             float[][] combined = new float[training.size()][16*16];
             int i = 0;
-            for (String s : training.getGroups()) {
-                for (FImage image : training.get(s)) {
-                    float[] imageData = image.getFloatPixelVector();
-                    combined[i] = imageData;
-                    i++;
-                }
+            for (FImage image : map.values()) {
+                combined[i] = image.getFloatPixelVector();
+                i++;
             }
             FloatNearestNeighboursExact blah = new FloatNearestNeighboursExact(combined);
 //            blah.searchKNN(query, k);

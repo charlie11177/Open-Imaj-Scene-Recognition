@@ -26,7 +26,7 @@ import static org.openimaj.feature.FloatFVComparison.EUCLIDEAN;
 
 public class Run1Testing {
     public static void main( String[] args ) throws IOException {
-        GroupedDataset<String, VFSListDataset<Record<FImage>>, Record<FImage>> training = new VFSGroupDataset(
+        GroupedDataset<String, VFSListDataset<FImage>, FImage> training = new VFSGroupDataset(
                 "D:\\Downloads\\training",
                 ImageUtilities.FIMAGE_READER);
 
@@ -52,19 +52,12 @@ public class Run1Testing {
         KNNAnnotator myKNNAnnotator = new KNNAnnotator(extractor, EUCLIDEAN, 5);
         myKNNAnnotator.train(training);
 
-
-        //result thingy from ch12 to test
-        ClassificationEvaluator<CMResult<String>, String, FImage> eval =
-                new ClassificationEvaluator<CMResult<String>, String, FImage>(myKNNAnnotator,testing,new CMAnalyser<FImage, String>(CMAnalyser.Strategy.SINGLE));
-        Map<FImage, ClassificationResult<String>> guesses = eval.evaluate();
-        CMResult<String> result = eval.analyse(guesses);
-        System.out.println(result);
+        System.out.println(myKNNAnnotator.classify(testing.getRandomInstance().getImage()));
     }
 
     static class TinyImagesExtractor implements FeatureExtractor<float[], FImage> {
         @Override
-        public float[] extractFeature(FImage object) {
-            FImage image = object;
+        public float[] extractFeature(FImage image) {
 
             //make image square
             if (image.width > image.height)
@@ -85,7 +78,7 @@ public class Run1Testing {
         PrintWriter myWriter = new PrintWriter("run1.txt");
 
         for (String fileName : predictions.keySet()) {
-            myWriter.println(fileName + predictions.get(fileName));
+            myWriter.println(fileName + " " + predictions.get(fileName));
         }
     }
 }

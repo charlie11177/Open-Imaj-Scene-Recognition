@@ -2,10 +2,13 @@ package uk.ac.soton.ecs.group;
 
 import ch.akuhn.matrix.DenseVector;
 import ch.akuhn.matrix.Vector;
+import com.google.common.collect.Lists;
 import org.apache.regexp.RE;
 import org.openimaj.data.dataset.GroupedDataset;
+import org.openimaj.data.dataset.ListDataset;
 import org.openimaj.data.dataset.VFSGroupDataset;
 import org.openimaj.data.dataset.VFSListDataset;
+import org.openimaj.experiment.dataset.split.GroupedRandomSplitter;
 import org.openimaj.experiment.evaluation.classification.ClassificationEvaluator;
 import org.openimaj.experiment.evaluation.classification.analysers.confusionmatrix.CMAnalyser;
 import org.openimaj.feature.DoubleFVComparison;
@@ -18,10 +21,12 @@ import org.openimaj.image.MBFImage;
 import org.openimaj.image.colour.ColourSpace;
 import org.openimaj.image.colour.RGBColour;
 import org.openimaj.image.feature.FImage2FloatFV;
+import org.openimaj.image.processing.algorithm.MeanCenter;
 import org.openimaj.image.processing.convolution.FGaussianConvolve;
 import org.openimaj.image.processing.resize.ResizeProcessor;
 import org.openimaj.image.typography.hershey.HersheyFont;
 import org.openimaj.knn.FloatNearestNeighboursExact;
+import org.openimaj.ml.annotation.AnnotatedObject;
 import org.openimaj.ml.annotation.basic.KNNAnnotator;
 import org.openimaj.util.comparator.DistanceComparator;
 import org.openimaj.util.pair.IntFloatPair;
@@ -34,11 +39,10 @@ import java.util.List;
 import java.util.Map;
 
 public class Run1 {
-    //TODO Figure out KNN implementation
+    //TODO Comment
     //TODO Figure out how to output prediction file
     public static void main( String[] args ) {
         try {
-
             // Data set imports
             GroupedDataset<String, VFSListDataset<FImage>, FImage> training = new VFSGroupDataset(
                     "zip:http://comp3204.ecs.soton.ac.uk/cw/training.zip",
@@ -50,70 +54,43 @@ public class Run1 {
 
             training.remove("training"); // Idk why but when doing a for each over the groups there's an extra group with everything
 
+            // Splits training set for testing
+            GroupedRandomSplitter<String, FImage> trainingSplit = new GroupedRandomSplitter<>(training, 50,0,50);
 
             // Training
-
-            // Manual implementation
-//            HashMap<Integer, String> classificationMap = new HashMap<>();
-//            int trainingSize = 0;
-//            for (String s : training.getGroups()) {
-//                trainingSize += training.get(s).size();
-//            }
-//            float[][] imageVectors = new float[trainingSize][16 * 16];
-//
-//            int i = 0;
-//            for (String group : training.getGroups()) {
-//                System.out.println(training.get(group).size());
-//                for (FImage image : training.get(group)) {
-//                    imageVectors[i] = extractTinyImage(image).getFloatPixelVector();
-//                    classificationMap.put(i, group);
-//                    i++;
-//                }
-//            }
-//            FloatNearestNeighboursExact fNN = new FloatNearestNeighboursExact(imageVectors);
-
-            // KNNAnnotator implementation
             KNNAnnotator<FImage, String, FloatFV> classifier = new KNNAnnotator<>(new FImage2FloatFV(), FloatFVComparison.EUCLIDEAN);
+            for (Map.Entry<String, ListDataset<FImage>> group : trainingSplit.getTrainingDataset().entrySet()) {
+                for (FImage image : group.getValue()) {
+                    classifier.train(new AnnotatedObject<>(extractTinyImage(image), group.getKey()));
+                }
+            }
+            classifier.setK(9);
 
-
-            // Prediction
-
-
+            // Testing
+            int correct = 0;
+            int total = 0;
+            for (Map.Entry<String, ListDataset<FImage>> group : trainingSplit.getTestDataset().entrySet()) {
+                for (FImage image : group.getValue()) {
+                    String classification = Lists.newArrayList(classifier.classify(extractTinyImage(image)).getPredictedClasses()).get(0);
+                    if (group.getKey().equals(classification)) {
+                        System.out.println("Correct - " + classification);
+                        correct++;
+                    }
+                    else {
+                        System.out.println("Incorrect - " + classification + " vs " + group.getKey());
+                    }
+                    total++;
+                }
+            }
+            System.out.println(correct + " / " + total + " = " + (double)correct/total);
         }
         catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    private static String classifyImage(FloatNearestNeighboursExact classifier, HashMap<Integer, String> mapping,FImage image) {
-        float[] query = extractTinyImage(image).getFloatPixelVector();
-        List<IntFloatPair> nearestNeighbours = classifier.searchKNN(query, 5);
-
-        List<String> neighbourClassifications = new ArrayList<>();
-        for (IntFloatPair pair : nearestNeighbours) {
-            neighbourClassifications.add(mapping.get(pair.first));
-        }
-
-        int mode = 0;
-        String modalValue = null;
-        for (String classification : neighbourClassifications) {
-            int count = 0;
-            for (String s : neighbourClassifications) {
-                if (s.equals(classification))
-                    count++;
-            }
-            if (count > mode) {
-                mode = count;
-                modalValue = classification;
-            }
-        }
-        return modalValue;
-    }
-
+    // Takes an FImage, crops it into a square (centered), Resizes it to 16x16, then normalises and 0 means it
     private static FImage extractTinyImage(FImage image) {
-
-//        System.out.println(image.width + " x " + image.height);
-
 
         FImage out = new FImage(image.width, image.height);
         if (image.width > image.height)
@@ -121,8 +98,8 @@ public class Run1 {
         else
             out = image.extractCenter(image.width, image.width);
 
-//        System.out.println(out.width + " x " + out.height);
-
-        return ResizeProcessor.zoomInplace(out, 16,16);
+        out = ResizeProcessor.zoomInplace(out, 16,16);
+        out.normalise();
+        return out.processInplace(new MeanCenter());
     }
 }

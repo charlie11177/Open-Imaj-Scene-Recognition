@@ -10,7 +10,9 @@ import org.openimaj.data.dataset.VFSGroupDataset;
 import org.openimaj.data.dataset.VFSListDataset;
 import org.openimaj.experiment.dataset.split.GroupedRandomSplitter;
 import org.openimaj.experiment.evaluation.classification.ClassificationEvaluator;
+import org.openimaj.experiment.evaluation.classification.ClassificationResult;
 import org.openimaj.experiment.evaluation.classification.analysers.confusionmatrix.CMAnalyser;
+import org.openimaj.experiment.evaluation.classification.analysers.confusionmatrix.CMResult;
 import org.openimaj.feature.DoubleFVComparison;
 import org.openimaj.feature.FloatFV;
 import org.openimaj.feature.FloatFVComparison;
@@ -21,6 +23,7 @@ import org.openimaj.image.MBFImage;
 import org.openimaj.image.colour.ColourSpace;
 import org.openimaj.image.colour.RGBColour;
 import org.openimaj.image.feature.FImage2FloatFV;
+import org.openimaj.image.feature.FloatFV2FImage;
 import org.openimaj.image.processing.algorithm.MeanCenter;
 import org.openimaj.image.processing.convolution.FGaussianConvolve;
 import org.openimaj.image.processing.resize.ResizeProcessor;
@@ -32,11 +35,11 @@ import org.openimaj.util.comparator.DistanceComparator;
 import org.openimaj.util.pair.IntFloatPair;
 import org.openrdf.query.algebra.Str;
 import org.openimaj.image.annotation.evaluation.datasets.Caltech101.Record;
+
+import java.io.FileNotFoundException;
+import java.io.PrintWriter;
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class Run1 {
     //TODO Comment
@@ -58,48 +61,53 @@ public class Run1 {
             GroupedRandomSplitter<String, FImage> trainingSplit = new GroupedRandomSplitter<>(training, 50,0,50);
 
             // Training
-            KNNAnnotator<FImage, String, FloatFV> classifier = new KNNAnnotator<>(new FImage2FloatFV(), FloatFVComparison.EUCLIDEAN);
-            for (Map.Entry<String, ListDataset<FImage>> group : trainingSplit.getTrainingDataset().entrySet()) {
-                for (FImage image : group.getValue()) {
-                    classifier.train(new AnnotatedObject<>(extractTinyImage(image), group.getKey()));
-                }
-            }
+            KNNAnnotator<FImage, String, FloatFV> classifier = new KNNAnnotator<>(new TinyImageExtractor(), FloatFVComparison.EUCLIDEAN);
+            classifier.train(trainingSplit.getTrainingDataset());
             classifier.setK(9);
 
             // Testing
-            int correct = 0;
-            int total = 0;
-            for (Map.Entry<String, ListDataset<FImage>> group : trainingSplit.getTestDataset().entrySet()) {
-                for (FImage image : group.getValue()) {
-                    String classification = Lists.newArrayList(classifier.classify(extractTinyImage(image)).getPredictedClasses()).get(0);
-                    if (group.getKey().equals(classification)) {
-                        System.out.println("Correct - " + classification);
-                        correct++;
-                    }
-                    else {
-                        System.out.println("Incorrect - " + classification + " vs " + group.getKey());
-                    }
-                    total++;
-                }
-            }
-            System.out.println(correct + " / " + total + " = " + (double)correct/total);
+            //result thingy from ch12 to test
+            ClassificationEvaluator<CMResult<String>, String, FImage> eval =
+                    new ClassificationEvaluator<CMResult<String>, String, FImage>(classifier,trainingSplit.getTestDataset(),new CMAnalyser<FImage, String>(CMAnalyser.Strategy.SINGLE));
+            Map<FImage, ClassificationResult<String>> guesses = eval.evaluate();
+            CMResult<String> result = eval.analyse(guesses);
+            System.out.println(result);
+            System.out.println(Lists.newArrayList(classifier.classify(trainingSplit.getTestDataset().getRandomInstance().getImage()).getPredictedClasses()).get(0));
         }
         catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    // Takes an FImage, crops it into a square (centered), Resizes it to 16x16, then normalises and 0 means it
-    private static FImage extractTinyImage(FImage image) {
+    // Returns image vector after:
+    // - Cropping image to square
+    // - Resizing to 16x16
+    // - Normalising
+    // - Zero mean (subtract mean from all values)
+    private static class TinyImageExtractor extends FImage2FloatFV {
+        @Override
+        public FloatFV extractFeature(FImage image) {
+            FImage out = new FImage(image.width, image.height);
+            if (image.width > image.height)
+                out = image.extractCenter(image.height, image.height);
+            else
+                out = image.extractCenter(image.width, image.width);
 
-        FImage out = new FImage(image.width, image.height);
-        if (image.width > image.height)
-            out = image.extractCenter(image.height, image.height);
-        else
-            out = image.extractCenter(image.width, image.width);
+            out = ResizeProcessor.zoomInplace(out, 16, 16);
+            out.normalise();
+            out.processInplace(new MeanCenter());
+            return super.extractFeature(out);
+        }
+    }
 
-        out = ResizeProcessor.zoomInplace(out, 16,16);
-        out.normalise();
-        return out.processInplace(new MeanCenter());
+    public static void outputResult(HashMap<String,String> predictions) throws FileNotFoundException {
+        PrintWriter myWriter = new PrintWriter("run1.txt");
+
+        for (String fileName : predictions.keySet()) {
+            myWriter.println(fileName + predictions.get(fileName));
+            myWriter.println(fileName + " " + predictions.get(fileName));
+        }
     }
 }
+
+

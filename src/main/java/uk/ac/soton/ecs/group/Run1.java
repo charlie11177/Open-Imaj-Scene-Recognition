@@ -42,8 +42,12 @@ import java.net.URL;
 import java.util.*;
 
 public class Run1 {
-    //TODO Comment
-    //TODO Figure out how to output prediction file
+    /*
+      TODO
+        *Train on whole training set
+        *Test on whole testing set
+        *Try different k values for best accuracy
+     */
     public static void main( String[] args ) {
         try {
             // Data set imports
@@ -51,7 +55,7 @@ public class Run1 {
                     "zip:http://comp3204.ecs.soton.ac.uk/cw/training.zip",
                     ImageUtilities.FIMAGE_READER);
 
-            GroupedDataset<String, VFSListDataset<FImage>, FImage> testing = new VFSGroupDataset<FImage>(
+            VFSListDataset<FImage> testing = new VFSListDataset<FImage>(
                     "zip:http://comp3204.ecs.soton.ac.uk/cw/testing.zip",
                     ImageUtilities.FIMAGE_READER);
 
@@ -64,6 +68,9 @@ public class Run1 {
             KNNAnnotator<FImage, String, FloatFV> classifier = new KNNAnnotator<>(new TinyImageExtractor(), FloatFVComparison.EUCLIDEAN);
             classifier.train(trainingSplit.getTrainingDataset());
             classifier.setK(9);
+
+            //calculate classifications and output them
+            outputResult(makeClassificationsMap(testing,classifier));
 
             // Testing
             //result thingy from ch12 to test
@@ -100,11 +107,22 @@ public class Run1 {
         }
     }
 
+    //calculates classifications for each testing image and puts them in a Hashmap along with the file name
+    public static HashMap<String,String> makeClassificationsMap(VFSListDataset<FImage> testingImages,KNNAnnotator classifier) {
+        HashMap classifications = new HashMap<String,String>();
+        int index = 0;
+        for (FImage testImage : testingImages) {
+            classifications.put(testingImages.getID(index),Lists.newArrayList(classifier.classify(testImage).getPredictedClasses()).get(0));
+            index++;
+        }
+        return classifications;
+    }
+
+    //outputs classifications Hashmap into run1.txt file
     public static void outputResult(HashMap<String,String> predictions) throws FileNotFoundException {
         PrintWriter myWriter = new PrintWriter("run1.txt");
 
         for (String fileName : predictions.keySet()) {
-            myWriter.println(fileName + predictions.get(fileName));
             myWriter.println(fileName + " " + predictions.get(fileName));
         }
     }

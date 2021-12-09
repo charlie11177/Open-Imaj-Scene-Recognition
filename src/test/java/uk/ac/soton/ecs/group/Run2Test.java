@@ -5,9 +5,9 @@ import static org.junit.Assert.*;
 import org.junit.Test;
 
 /**
- * Unit test for simple App.
+ * Unit test for simple Run2.
  */
-public class AppTest {
+public class Run2Test {
     /**
      * Rigourous Test :-)
      */

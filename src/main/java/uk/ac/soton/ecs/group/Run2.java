@@ -6,7 +6,10 @@ import org.apache.commons.math3.geometry.euclidean.twod.Euclidean2D;
 import org.apache.commons.math3.ml.distance.EuclideanDistance;
 import org.apache.commons.vfs2.FileSystemException;
 import org.openimaj.data.dataset.Dataset;
+import org.openimaj.data.dataset.GroupedDataset;
 import org.openimaj.data.dataset.VFSGroupDataset;
+import org.openimaj.data.dataset.VFSListDataset;
+import org.openimaj.experiment.dataset.split.GroupedRandomSplitter;
 import org.openimaj.experiment.evaluation.classification.ClassificationEvaluator;
 import org.openimaj.experiment.evaluation.classification.ClassificationResult;
 import org.openimaj.experiment.evaluation.classification.analysers.confusionmatrix.CMAnalyser;
@@ -30,6 +33,8 @@ import java.util.Map;
 public class Run2 {
     public static void main( String[] args ) throws FileSystemException {
         VFSGroupDataset<FImage> training = new VFSGroupDataset<FImage>("zip:http://comp3204.ecs.soton.ac.uk/cw/training.zip", ImageUtilities.FIMAGE_READER);
+        GroupedRandomSplitter<String, FImage> splits = new GroupedRandomSplitter<String, FImage>(training, 50, 0, 50);
+
         VFSGroupDataset<FImage> testing = new VFSGroupDataset<FImage>("zip:http://comp3204.ecs.soton.ac.uk/cw/testing.zip", ImageUtilities.FIMAGE_READER);
 
         HardAssigner<DoubleFV, float[], IntFloatPair> assigner = trainQuantiser(training);
@@ -38,15 +43,13 @@ public class Run2 {
 
         LiblinearAnnotator<FImage, String> ann = new LiblinearAnnotator<FImage, String>(
                 extractor, LiblinearAnnotator.Mode.MULTICLASS, SolverType.L2R_L2LOSS_SVC, 1.0, 0.00001);
-        ann.train(training);
+        ann.train(splits.getTrainingDataset());
 
-        ClassificationEvaluator<CMResult<String>, String, FImage> eval =
-                new ClassificationEvaluator<CMResult<String>, String, FImage>(
-                        ann, testing, new CMAnalyser<FImage, String>(CMAnalyser.Strategy.SINGLE));
+        ClassificationEvaluator<CMResult<String>, String, FImage> eval = new ClassificationEvaluator<CMResult<String>, String, FImage>(ann, splits.getTestDataset(), new CMAnalyser<FImage, String>(CMAnalyser.Strategy.SINGLE));
 
         Map<FImage,ClassificationResult<String>> guesses = eval.evaluate();
-        System.out.println(guesses.size());
         CMResult<String> result = eval.analyse(guesses);
+        System.out.println(result);
     }
 
 

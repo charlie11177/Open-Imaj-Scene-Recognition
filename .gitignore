@@ -2,3 +2,5 @@
 .target/
 comp3204-scene-recognition.iml
 *.class
+src/main/java/uk/ac/soton/ecs/group/cache/Assigner.txt
+src/main/java/uk/ac/soton/ecs/group/run2.txt

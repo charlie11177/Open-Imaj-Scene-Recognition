@@ -6,6 +6,7 @@ import de.bwaldvogel.liblinear.SolverType;
 import org.apache.commons.vfs2.FileSystemException;
 import org.junit.Test;
 import org.openimaj.data.dataset.VFSGroupDataset;
+import org.openimaj.data.identity.IdentifiableObject;
 import org.openimaj.experiment.dataset.split.GroupedRandomSplitter;
 import org.openimaj.experiment.evaluation.classification.ClassificationEvaluator;
 import org.openimaj.experiment.evaluation.classification.ClassificationResult;
@@ -32,6 +33,7 @@ public class Run2Test {
 	@Test
     public void testApp() throws FileSystemException {
         VFSGroupDataset<FImage> training = new VFSGroupDataset<FImage>("zip:http://comp3204.ecs.soton.ac.uk/cw/training.zip", ImageUtilities.FIMAGE_READER);
+        training.remove("training");
         GroupedRandomSplitter<String, FImage> splits = new GroupedRandomSplitter<String, FImage>(training, 50, 0, 50);
 
         HardAssigner<DoubleFV, float[], IntFloatPair> assigner = Run2.trainQuantiser(training);

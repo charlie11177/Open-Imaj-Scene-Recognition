@@ -1,3 +1,4 @@
 .idea/
 .target/
 comp3204-scene-recognition.iml
+*.class

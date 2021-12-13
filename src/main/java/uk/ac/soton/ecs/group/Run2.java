@@ -64,6 +64,11 @@ public class Run2 {
     }
 
 
+    /**
+     *
+     * @param sample
+     * @return
+     */
     static HardAssigner<DoubleFV, float[], IntFloatPair> trainQuantiser(Dataset<FImage> sample) {
         List<DoubleFV> allPatches = new ArrayList<DoubleFV>();
 
@@ -78,13 +83,12 @@ public class Run2 {
         FeatureVectorKMeans<DoubleFV> km = FeatureVectorKMeans.createExact(500, DoubleFVComparison.EUCLIDEAN);
         FeatureVectorKMeans.Result<DoubleFV> result = km.cluster(allPatches);
 
-        //TODO: Now ended up with List<DoubleFV>
-        // Ive created a method which turns an image into a list of DoubleFV hopefully we can use KMeans easier
-        // what is the point of mean-centering a patch (an array) and normalising ???? No idea spec just said we might want to try it
-
         return result.defaultHardAssigner();
     }
 
+    /**
+     *
+     */
     static class POWExtractor implements FeatureExtractor<SparseIntFV, FImage> {
         HardAssigner<DoubleFV, float[], IntFloatPair> assigner;
 

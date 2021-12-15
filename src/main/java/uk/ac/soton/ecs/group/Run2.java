@@ -39,7 +39,9 @@ import java.util.Map;
 
 public class Run2 {
     public static void main( String[] args ) throws IOException {
+        //Collecting the training and testing set from the coursework webpage
         VFSGroupDataset<FImage> training = new VFSGroupDataset<FImage>("zip:http://comp3204.ecs.soton.ac.uk/cw/training.zip", ImageUtilities.FIMAGE_READER);
+        //Removing the empty training group created by the zip
         training.remove("training");
         VFSListDataset<FImage> testing = new VFSListDataset<FImage>("zip:http://comp3204.ecs.soton.ac.uk/cw/testing.zip", ImageUtilities.FIMAGE_READER);
         String path = "./src/main/java/uk/ac/soton/ecs/group/";
@@ -54,6 +56,7 @@ public class Run2 {
 
         PrintWriter output = new PrintWriter(path+"run2.txt");
         int index = 0;
+        //Cycles through all images in the testing set. Gets the filename, attempts to classify the image and then writes the output to the console and the file "run2.txt"
         for(FImage image : testing){
             String filename = testing.getID(index).replace("testing/", "");
             String guess = ann.classify(image).getPredictedClasses().toArray(new String[0])[0];
@@ -65,9 +68,10 @@ public class Run2 {
 
 
     /**
-     *
-     * @param sample
-     * @return
+     * HardAssigner which takes a sample of images and from each image extracts a List of DoubleFV which represent 8x8 patches across the image.
+     * It then takes a sample of this list and uses FeatureVectorKMeans to cluster them into 500 different clusters
+     * @param sample The sample Dataset of images to train on
+     * @return A HardAssigner used to distinguish which cluster a DoubleFV (patch) belongs to
      */
     static HardAssigner<DoubleFV, float[], IntFloatPair> trainQuantiser(Dataset<FImage> sample) {
         List<DoubleFV> allPatches = new ArrayList<DoubleFV>();
@@ -86,9 +90,6 @@ public class Run2 {
         return result.defaultHardAssigner();
     }
 
-    /**
-     *
-     */
     static class POWExtractor implements FeatureExtractor<SparseIntFV, FImage> {
         HardAssigner<DoubleFV, float[], IntFloatPair> assigner;
 
@@ -96,7 +97,12 @@ public class Run2 {
             this.assigner = assigner;
         }
 
-        @Override
+        /**
+         * Takes an image and using a HardAssigner, creates a BagOfVisual words representation to distinguish how many local features come from each cluster in the assigner
+         * It then aggregates these values to create a vector
+         * @param image Image to extract feature from
+         * @return SparseIntFV representing the BagOfVisual words created from patches
+         */
         public SparseIntFV extractFeature(FImage image) {
             BagOfVisualWords<DoubleFV> bovw = new BagOfVisualWords<DoubleFV>(assigner);
             return bovw.aggregateVectorsRaw(new PatchExtractor(image).extractFeatureVectors());

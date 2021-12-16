@@ -24,6 +24,7 @@ public class PatchExtractor {
      * @return a list of patches, each patch as a DoubleFV
      */
     public List<DoubleFV> extractFeatureVectors(){
+        // Sampler used to extract patches
         RectangleSampler rectangleSampler = new RectangleSampler(image, 4, 4, 8, 8);
         Iterator<FImage> rectangleIterator = rectangleSampler.subImageIterator(image);
 
@@ -35,8 +36,8 @@ public class PatchExtractor {
             new MeanCenter().processImage(patch); // Mean-centring
             patch.normalise(); // Normalising
 
+            // Convert patch to feature vector
             featureVector = new FImage2DoubleFV().extractFeature(patch);
-
             featureVectors.add(featureVector);
         }
         return featureVectors;

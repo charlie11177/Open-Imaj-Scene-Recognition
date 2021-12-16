@@ -43,33 +43,52 @@ import java.util.Map;
  */
 public class Run3 {
     public static void main(String[] args) throws FileSystemException, FileNotFoundException {
+        // Training dataset
         VFSGroupDataset<FImage> training = new VFSGroupDataset<FImage>("zip:http://comp3204.ecs.soton.ac.uk/cw/training.zip", ImageUtilities.FIMAGE_READER);
-        training.remove("training");
-        VFSListDataset<FImage> testing = new VFSListDataset<FImage>("zip:http://comp3204.ecs.soton.ac.uk/cw/testing.zip", ImageUtilities.FIMAGE_READER);
-        String path = "./src/main/java/uk/ac/soton/ecs/group/";
 
+        // Remove the empty training group created by the zip
+        training.remove("training");
+
+        // Training dataset
+        VFSListDataset<FImage> testing = new VFSListDataset<FImage>("zip:http://comp3204.ecs.soton.ac.uk/cw/testing.zip", ImageUtilities.FIMAGE_READER);
+
+        // Pyramid Dense SIFT object needed for the assigner and feature extractor
         DenseSIFT dsift = new DenseSIFT(3, 7);
         PyramidDenseSIFT<FImage> pdsift = new PyramidDenseSIFT<FImage>(dsift, 6f, 7);
 
+        // Assigner
         HardAssigner<byte[], float[], IntFloatPair> assigner =
                 trainQuantiser(GroupedUniformRandomisedSampler.sample(training, 20), pdsift);
 
+        // Homogenous kernel map used to wrap the extractor in
         HomogeneousKernelMap homogeneousKernelMap = new HomogeneousKernelMap(HomogeneousKernelMap.KernelType.Chi2, HomogeneousKernelMap.WindowType.Rectangular);
 
+        // Feature extractor
         FeatureExtractor<DoubleFV, FImage> extractor = homogeneousKernelMap.createWrappedExtractor(new PHOWExtractor(pdsift, assigner));
 
-
+        // Linear classifier
         LiblinearAnnotator<FImage, String> ann = new LiblinearAnnotator<FImage, String>(
                 extractor, LiblinearAnnotator.Mode.MULTICLASS, SolverType.L2R_L2LOSS_SVC, 1.0, 0.00001);
+
+        // Train linear classifier using the training dataset
         ann.train(training);
 
-        PrintWriter output = new PrintWriter(path+"run3.txt");
+        // Create file for .txt file
+        String path = "./src/main/java/uk/ac/soton/ecs/group/";
+        PrintWriter output = new PrintWriter(path+"run2.txt");
+
         int index = 0;
-        //Cycles through all images in the testing set. Gets the filename, attempts to classify the image and then writes the output to the console and the file "run2.txt"
         for(FImage image : testing){
+            // Gets the filename
             String filename = testing.getID(index).replace("testing/", "");
+
+            // Prediction of the classifier
             String guess = ann.classify(image).getPredictedClasses().toArray(new String[0])[0];
+
+            // Print prediction to console
             System.out.println(filename + " " + guess);
+
+            // Write prediction to .txt file
             output.println(filename + " " + guess);
             index++;
         }
@@ -82,6 +101,7 @@ public class Run3 {
         List<LocalFeatureList<ByteDSIFTKeypoint>> allkeys = new ArrayList<LocalFeatureList<ByteDSIFTKeypoint>>();
 
         for (FImage img : sample) {
+            // Analyse images and add key features to the list
             pdsift.analyseImage(img);
             allkeys.add(pdsift.getByteKeypoints(0.005f));
         }
@@ -89,6 +109,7 @@ public class Run3 {
         if (allkeys.size() > 10000)
             allkeys = allkeys.subList(0, 10000);
 
+        // Perform K-Means on the Pyramid Dense SIFT features extracted
         ByteKMeans km = ByteKMeans.createKDTreeEnsemble(300);
         DataSource<byte[]> datasource = new LocalFeatureListDataSource<ByteDSIFTKeypoint, byte[]>(allkeys);
         ByteCentroidsResult result = km.cluster(datasource);

@@ -59,7 +59,7 @@ public class Run1 {
             GroupedRandomSplitter<String, FImage> trainingSplit = new GroupedRandomSplitter<>(training, 50,0,50);
 
             // Training
-            KNNAnnotator<FImage, String, FloatFV> classifier = new KNNAnnotator<>(new TinyImageExtractor(), FloatFVComparison.EUCLIDEAN);
+            KNNAnnotator<FImage, String, FloatFV> classifier = new KNNAnnotator<>(new TinyImageExtractor(), FloatFVComparison.CITY_BLOCK);
             classifier.train(trainingSplit.getTrainingDataset());
             classifier.setK(9);
 

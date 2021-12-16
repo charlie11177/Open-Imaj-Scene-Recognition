@@ -125,7 +125,7 @@ public class Run1 {
         for (String fileName : predictions.keySet()) {
             myWriter.println(fileName + " " + predictions.get(fileName));
         }
+
+        myWriter.close();
     }
 }
-
-

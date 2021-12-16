@@ -42,12 +42,6 @@ import java.net.URL;
 import java.util.*;
 
 public class Run1 {
-    /*
-      TODO
-        *Train on whole training set
-        *Test on whole testing set
-        *Try different k values for best accuracy
-     */
     public static void main( String[] args ) {
         try {
             // Data set imports
@@ -79,7 +73,7 @@ public class Run1 {
             Map<FImage, ClassificationResult<String>> guesses = eval.evaluate();
             CMResult<String> result = eval.analyse(guesses);
             System.out.println(result);
-            System.out.println(Lists.newArrayList(classifier.classify(trainingSplit.getTestDataset().getRandomInstance().getImage()).getPredictedClasses()).get(0));
+//            System.out.println(Lists.newArrayList(classifier.classify(trainingSplit.getTestDataset().getRandomInstance().getImage()).getPredictedClasses()).get(0));
         }
         catch (Exception e) {
             e.printStackTrace();
@@ -112,7 +106,7 @@ public class Run1 {
         HashMap classifications = new HashMap<String,String>();
         int index = 0;
         for (FImage testImage : testingImages) {
-            classifications.put(testingImages.getID(index),Lists.newArrayList(classifier.classify(testImage).getPredictedClasses()).get(0));
+            classifications.put(testingImages.getID(index).replace("testing/", ""),Lists.newArrayList(classifier.classify(testImage).getPredictedClasses()).get(0));
             index++;
         }
         return classifications;

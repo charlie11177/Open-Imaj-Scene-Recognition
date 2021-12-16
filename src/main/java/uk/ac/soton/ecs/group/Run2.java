@@ -64,6 +64,7 @@ public class Run2 {
             output.println(filename + " " + guess);
             index++;
         }
+        output.close();
     }
 
 

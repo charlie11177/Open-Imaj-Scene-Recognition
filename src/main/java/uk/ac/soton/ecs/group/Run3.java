@@ -32,22 +32,27 @@ import org.openimaj.ml.clustering.kmeans.ByteKMeans;
 import org.openimaj.ml.kernel.HomogeneousKernelMap;
 import org.openimaj.util.pair.IntFloatPair;
 
+import java.io.FileNotFoundException;
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * 74.8% Accuracy
+ */
 public class Run3 {
-    public static void main(String[] args) throws FileSystemException {
+    public static void main(String[] args) throws FileSystemException, FileNotFoundException {
         VFSGroupDataset<FImage> training = new VFSGroupDataset<FImage>("zip:http://comp3204.ecs.soton.ac.uk/cw/training.zip", ImageUtilities.FIMAGE_READER);
         training.remove("training");
-        GroupedRandomSplitter<String, FImage> splits = new GroupedRandomSplitter<String, FImage>(training, 50, 0, 50);
         VFSListDataset<FImage> testing = new VFSListDataset<FImage>("zip:http://comp3204.ecs.soton.ac.uk/cw/testing.zip", ImageUtilities.FIMAGE_READER);
+        String path = "./src/main/java/uk/ac/soton/ecs/group/";
 
         DenseSIFT dsift = new DenseSIFT(3, 7);
         PyramidDenseSIFT<FImage> pdsift = new PyramidDenseSIFT<FImage>(dsift, 6f, 7);
 
         HardAssigner<byte[], float[], IntFloatPair> assigner =
-                trainQuantiser(GroupedUniformRandomisedSampler.sample(splits.getTrainingDataset(), 20), pdsift);
+                trainQuantiser(GroupedUniformRandomisedSampler.sample(training, 20), pdsift);
 
         HomogeneousKernelMap homogeneousKernelMap = new HomogeneousKernelMap(HomogeneousKernelMap.KernelType.Chi2, HomogeneousKernelMap.WindowType.Rectangular);
 
@@ -56,16 +61,19 @@ public class Run3 {
 
         LiblinearAnnotator<FImage, String> ann = new LiblinearAnnotator<FImage, String>(
                 extractor, LiblinearAnnotator.Mode.MULTICLASS, SolverType.L2R_L2LOSS_SVC, 1.0, 0.00001);
-        ann.train(splits.getTrainingDataset());
+        ann.train(training);
 
-        ClassificationEvaluator<CMResult<String>, String, FImage> eval =
-                new ClassificationEvaluator<CMResult<String>, String, FImage>(
-                        ann, splits.getTestDataset(), new CMAnalyser<FImage, String>(CMAnalyser.Strategy.SINGLE));
-
-        Map<FImage, ClassificationResult<String>> guesses = eval.evaluate();
-        CMResult<String> result = eval.analyse(guesses);
-
-        System.out.println(result);
+        PrintWriter output = new PrintWriter(path+"run3.txt");
+        int index = 0;
+        //Cycles through all images in the testing set. Gets the filename, attempts to classify the image and then writes the output to the console and the file "run2.txt"
+        for(FImage image : testing){
+            String filename = testing.getID(index).replace("testing/", "");
+            String guess = ann.classify(image).getPredictedClasses().toArray(new String[0])[0];
+            System.out.println(filename + " " + guess);
+            output.println(filename + " " + guess);
+            index++;
+        }
+        output.close();
     }
 
     static HardAssigner<byte[], float[], IntFloatPair> trainQuantiser(
